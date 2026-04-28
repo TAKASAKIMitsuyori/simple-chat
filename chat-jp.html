@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルチャット</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        .chat-box {
+            flex: 1;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+        
+        .header {
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .box-a .header {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .box-b .header {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .box-a .message {
+            background: #1976d2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .box-b .message {
+            background: #7b1fa2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .input-area {
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 12px 16px;
+            border-radius: 25px;
+            background: #f5f5f5;
+            font-size: 14px;
+        }
+        
+        button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: scale(1.1);
+        }
+        
+        .box-a button {
+            background: #1976d2;
+            color: white;
+        }
+        
+        .box-b button {
+            background: #7b1fa2;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+        
+        .share-link {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+        
+        .share-link button {
+            background: #333;
+            color: white;
+            width: auto;
+            height: auto;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: calc(100vh - 100px);
+            }
+            .chat-box {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- A側ダイアログ -->
+        <div class="chat-box box-a">
+            <div class="header">
+                <span>👤</span> A側
+            </div>
+            <div class="messages" id="messagesA">
+                <div class="empty-state">メッセージを待っています...</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="inputA" placeholder="メッセージを入力..." maxlength="200">
+                <button onclick="sendMessage('A')">➤</button>
+            </div>
+        </div>
+
+        <!-- B側ダイアログ -->
+        <div class="chat-box box-b">
+            <div class="header">
+                <span>👤</span> B側
+            </div>
+            <div class="messages" id="messagesB">
+                <div class="empty-state">メッセージを待っています...</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="inputB" placeholder="メッセージを入力..." maxlength="200">
+                <button onclick="sendMessage('B')">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="share-link">
+        <span>📋 リンクをコピーして相手に共有：</span>
+        <button onclick="copyLink()">リンクをコピー</button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const data = urlParams.get('d');
+        
+        let messages = { A: [], B: [] };
+        
+        if (data) {
+            try {
+                messages = JSON.parse(atob(data));
+            } catch(e) {}
+        }
+
+        function render() {
+            ['A', 'B'].forEach(side => {
+                const container = document.getElementById('messages' + side);
+                const otherSide = side === 'A' ? 'B' : 'A';
+                
+                if (messages[otherSide].length === 0) {
+                    container.innerHTML = '<div class="empty-state">メッセージを待っています...</div>';
+                } else {
+                    container.innerHTML = messages[otherSide].map(msg => 
+                        `<div class="message">${escapeHtml(msg)}</div>`
+                    ).join('');
+                }
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sendMessage(side) {
+            const input = document.getElementById('input' + side);
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            messages[side].push(text);
+            input.value = '';
+            
+            const newUrl = window.location.pathname + '?d=' + btoa(JSON.stringify(messages));
+            window.history.replaceState({}, '', newUrl);
+            
+            render();
+            
+            alert('メッセージを送信しました！相手にページを更新してもらうか、リンクを再度共有してください');
+        }
+
+        document.getElementById('inputA').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage('A');
+        });
+        document.getElementById('inputB').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage('B');
+        });
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('リンクをコピーしました！相手と共有すれば対話ができます');
+            });
+        }
+
+        render();
+        
+        let lastData = data;
+        setInterval(() => {
+            const currentParams = new URLSearchParams(window.location.search);
+            const currentData = currentParams.get('d');
+            if (currentData !== lastData) {
+                lastData = currentData;
+                location.reload();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
