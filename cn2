@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能双人对话</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: url('https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=1920&q=80') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* 背景遮罩，让文字更清晰 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: -1;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+            position: relative;
+        }
+        
+        .chat-box {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 550px;
+            transition: transform 0.3s;
+        }
+        
+        .chat-box:hover { transform: translateY(-5px); }
+        
+        .header {
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .box-a .header { background: rgba(227, 242, 253, 0.9); color: #1976d2; }
+        .box-b .header { background: rgba(243, 229, 245, 0.9); color: #7b1fa2; }
+        
+        .status {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.8);
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+            position: relative;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message .time {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        
+        .box-a .message {
+            background: #1976d2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .box-b .message {
+            background: #7b1fa2;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .input-area {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 12px 16px;
+            border-radius: 25px;
+            background: rgba(245, 245, 245, 0.9);
+            font-size: 14px;
+        }
+        
+        button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        
+        button:hover { transform: scale(1.1); }
+        .box-a button { background: #1976d2; color: white; }
+        .box-b button { background: #7b1fa2; color: white; }
+        
+        .empty-state {
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+        
+        /* 智能面板 */
+        .smart-panel {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 280px;
+            z-index: 100;
+        }
+        
+        .smart-panel h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .room-id {
+            text-align: center;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        
+        .btn-secondary { background: rgba(240, 240, 240, 0.9); color: #333; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        
+        .history-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .history-item {
+            padding: 8px;
+            background: rgba(248, 249, 250, 0.9);
+            border-radius: 8px;
+            margin-bottom: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .history-item:hover { background: #e3f2fd; }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .toast.show { opacity: 1; }
+        
+        @media (max-width: 1200px) {
+            .smart-panel { display: none; }
+        }
+        
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .chat-box { height: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-box box-a">
+            <div class="header">
+                <span>👤 A 端</span>
+                <span class="status" id="statusA">在线</span>
+            </div>
+            <div class="messages" id="messagesA">
+                <div class="empty-state">等待消息...</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="inputA" placeholder="输入文字..." maxlength="200">
+                <button onclick="sendMessage('A')">➤</button>
+            </div>
+        </div>
+
+        <div class="chat-box box-b">
+            <div class="header">
+                <span>👤 B 端</span>
+                <span class="status" id="statusB">在线</span>
+            </div>
+            <div class="messages" id="messagesB">
+                <div class="empty-state">等待消息...</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="inputB" placeholder="输入文字..." maxlength="200">
+                <button onclick="sendMessage('B')">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能控制面板 -->
+    <div class="smart-panel">
+        <h3>🔗 智能分享</h3>
+        
+        <div class="room-id" id="roomId">生成中...</div>
+        
+        <button class="btn btn-primary" onclick="copySmartLink()">
+            📋 复制对话链接
+        </button>
+        
+        <button class="btn btn-secondary" onclick="generateRoom()">
+            🔄 新建私密房间
+        </button>
+        
+        <h3 style="margin-top: 20px;">📜 历史记录</h3>
+        <div class="history-list" id="historyList">
+            <div class="empty-state">暂无记录</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 初始化
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('room') || generateId();
+        let messages = { A: [], B: [] };
+        let messageHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+        
+        // 生成唯一房间号
+        function generateId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+        
+        // 初始化房间
+        function initRoom() {
+            document.getElementById('roomId').textContent = roomId;
+            
+            // 更新 URL 不刷新
+            const newUrl = window.location.pathname + '?room=' + roomId;
+            window.history.replaceState({}, '', newUrl);
+            
+            // 加载该房间的历史消息
+            loadRoomData();
+        }
+        
+        // 生成新房间
+        function generateRoom() {
+            roomId = generateId();
+            messages = { A: [], B: [] };
+            initRoom();
+            render();
+            showToast('已创建新私密房间: ' + roomId);
+        }
+        
+        // 加载房间数据
+        function loadRoomData() {
+            const data = urlParams.get('d');
+            if (data) {
+                try {
+                    messages = JSON.parse(atob(data));
+                } catch(e) {}
+            }
+        }
+        
+        // 渲染消息
+        function render() {
+            ['A', 'B'].forEach(side => {
+                const container = document.getElementById('messages' + side);
+                const otherSide = side === 'A' ? 'B' : 'A';
+                
+                if (messages[otherSide].length === 0) {
+                    container.innerHTML = '<div class="empty-state">等待消息...</div>';
+                } else {
+                    container.innerHTML = messages[otherSide].map((msg, idx) => 
+                        `<div class="message">
+                            ${escapeHtml(msg.text)}
+                            <div class="time">${msg.time}</div>
+                        </div>`
+                    ).join('');
+                }
+                container.scrollTop = container.scrollHeight;
+            });
+            
+            updateHistory();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 发送消息
+        function sendMessage(side) {
+            const input = document.getElementById('input' + side);
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const msg = {
+                text: text,
+                time: new Date().toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}),
+                timestamp: Date.now()
+            };
+            
+            messages[side].push(msg);
+            input.value = '';
+            
+            // 保存到 URL
+            const data = btoa(JSON.stringify(messages));
+            const newUrl = window.location.pathname + '?room=' + roomId + '&d=' + data;
+            window.history.replaceState({}, '', newUrl);
+            
+            // 保存到本地历史
+            saveToHistory(text, side);
+            
+            render();
+            showToast('消息已发送！链接已更新');
+        }
+        
+        // 智能复制链接
+        async function copySmartLink() {
+            const url = window.location.href;
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('✅ 链接已复制！直接发给对方即可');
+            } catch (err) {
+                // 降级方案
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                showToast('✅ 链接已复制！');
+            }
+        }
+        
+        // 保存到历史
+        function saveToHistory(text, side) {
+            const record = {
+                room: roomId,
+                preview: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
+                time: new Date().toLocaleString('zh-CN'),
+                url: window.location.href
+            };
+            messageHistory.unshift(record);
+            if (messageHistory.length > 10) messageHistory.pop();
+            localStorage.setItem('chatHistory', JSON.stringify(messageHistory));
+        }
+        
+        // 更新历史显示
+        function updateHistory() {
+            const list = document.getElementById('historyList');
+            if (messageHistory.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无记录</div>';
+                return;
+            }
+            
+            list.innerHTML = messageHistory.map(h => 
+                `<div class="history-item" onclick="window.location.href='${h.url}'">
+                    <strong>${h.room}</strong>: ${h.preview}<br>
+                    <small>${h.time}</small>
+                </div>`
+            ).join('');
+        }
+        
+        // 显示提示
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // 回车发送
+        document.getElementById('inputA').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage('A');
+        });
+        document.getElementById('inputB').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage('B');
+        });
+        
+        // 轮询检测对方消息（模拟实时）
+        let lastUrl = window.location.href;
+        setInterval(() => {
+            const current = window.location.href;
+            if (current !== lastUrl) {
+                lastUrl = current;
+                const params = new URLSearchParams(window.location.search);
+                const newData = params.get('d');
+                if (newData) {
+                    try {
+                        const newMsgs = JSON.parse(atob(newData));
+                        if (JSON.stringify(newMsgs) !== JSON.stringify(messages)) {
+                            messages = newMsgs;
+                            render();
+                            showToast('🆕 收到新消息！');
+                        }
+                    } catch(e) {}
+                }
+            }
+        }, 2000);
+        
+        // 初始化
+        initRoom();
+        render();
+    </script>
+</body>
+</html>
